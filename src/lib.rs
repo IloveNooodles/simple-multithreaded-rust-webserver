@@ -7,7 +7,7 @@ pub struct ThreadPool {
     sender: mpsc::Sender<Job>,
 }
 
-struct Job;
+type Job = Box<dyn FnOnce() + Send + 'static>;
 
 /// ThreadPool implementation
 impl ThreadPool {
@@ -20,11 +20,11 @@ impl ThreadPool {
         let (sender, reciver) = mpsc::channel();
 
         let receiver = Arc::new(Mutex::new(reciver));
-      
+
         /* Create workers for the thread pool */
         let mut workers = Vec::with_capacity(size);
         for id in 0..size {
-            workers.push(Worker::new(id, reciver));
+            workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
         ThreadPool { workers, sender }
     }
@@ -34,17 +34,25 @@ impl ThreadPool {
     where
         F: FnOnce() + Send + 'static,
     {
+        let job = Box::new(f);
+        self.sender.send(job).unwrap();
     }
 }
 
 struct Worker {
     id: usize,
-    thread: thread::JoinHandle<Receiver<Job>>,
+    thread: thread::JoinHandle<()>,
 }
 
 impl Worker {
-    fn new(id: usize, receiver: mpsc::Receiver<Job>) -> Worker {
-        let thread = thread::spawn(|| receiver);
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let thread = thread::spawn(move || loop {
+            /* no need to unlock because smart pointer */
+            let job = receiver.lock().unwrap().recv().unwrap();
+            println!("Exceuting jobs {}", id);
+            job();
+        });
+
         Worker { id, thread }
     }
 }

@@ -1,6 +1,8 @@
 use std::fs;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
+use std::thread::sleep;
+use std::time::Duration;
 
 use simple_rust_webserver::ThreadPool;
 
@@ -40,6 +42,7 @@ fn handle_connection(mut stream: TcpStream) {
     let (status_line, filename) = if buffer.starts_with(GET_INDEX.as_bytes()) {
         ("HTTP/1.1 200 OK", "index.html")
     } else if buffer.starts_with(ANOTHER_PATH.as_bytes()) {
+        sleep(Duration::from_secs(5));
         ("HTTP/1.1 200 OK", "another.html")
     } else {
         ("HTTP/1.1 404 NOT FOUND", "404.html")
