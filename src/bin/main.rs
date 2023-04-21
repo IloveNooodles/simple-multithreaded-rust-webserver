@@ -2,15 +2,22 @@ use std::fs;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 
+use simple_rust_webserver::ThreadPool;
+
 const GET_INDEX: &'static str = "GET / HTTP/1.1\r\n";
 const ANOTHER_PATH: &'static str = "GET /another HTTP/1.1\r\n";
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
+    let tpool = ThreadPool::new(10);
+
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        handle_connection(stream);
+
+        tpool.execute(|| {
+            handle_connection(stream);
+        })
     }
 }
 
